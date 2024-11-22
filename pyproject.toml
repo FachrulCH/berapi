@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "berapi"
+version = "0.1.0"
+description = "An API client for simplifying API testing with Python + PyTest"
+authors = ["fachrulch <fachrul.fch@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+requests = "^2.32.3"
+curlify = "^2.2.1"
+assertpy = "^1.1"
+jsonschema = "^4.23.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
