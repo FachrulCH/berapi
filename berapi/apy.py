@@ -4,6 +4,7 @@ import os
 import curlify
 import requests
 
+from berapi.responder import Responder
 from berapi.utils import format_console
 
 MAX_TIMEOUT = int(os.getenv("MAX_TIMEOUT", 3))
@@ -46,8 +47,8 @@ class berAPI(requests.Session):
             raise requests.Timeout
         return response
 
-    def get(self, url, *args, **kwargs):
-        return self.request("GET", url, *args, **kwargs)
+    def get(self, url, *args, **kwargs) -> Responder:
+        return Responder(self.request("GET", url, *args, **kwargs))
 
     def post(self, url, *args, **kwargs):
         return self.request("POST", url, *args, **kwargs)
