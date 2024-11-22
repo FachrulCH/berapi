@@ -70,6 +70,16 @@ class Responder:
         """Get data from response body [key]"""
         return self.parse_json().get(key)
 
+    def assert_value(self, key: str, value):
+        """Test value from root property"""
+        assert_that(self.get_property(key)).is_equal_to(value)
+        return self
+
+    def assert_response_time_less_than(self, seconds: int):
+        """Test response time should less than seconds"""
+        assert_that(self.response.elapsed.total_seconds()).is_less_than(seconds)
+        return self
+
     def assert_schema(self, file_path_json_schema):
         """Test response body should match schema"""
         with open(file_path_json_schema) as f:

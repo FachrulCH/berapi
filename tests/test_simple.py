@@ -38,3 +38,11 @@ def test_starwars_multi_assert():
     assert response.get('gender') == 'male'
     assert response.get('eye_color') == 'red'
     assert "this never executed" == ""
+
+def test_chaining():
+    (berAPI()
+     .get('https://swapi.dev/api/people/1')
+     .assert_2xx()
+     .assert_value('name', 'Luke Skywalker')
+     .assert_response_time_less_than(seconds=1)
+     )

@@ -5,5 +5,6 @@ env/
 .venv/
 reports/
 builds/
+dist/
 **/*.html
 **/.DS_Store
