@@ -7,12 +7,16 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 requests = "^2.32.3"
 curlify = "^2.2.1"
 assertpy = "^1.1"
 jsonschema = "^4.23.0"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.5"
+pytest-html = "^4.1.1"
 
 [build-system]
 requires = ["poetry-core"]

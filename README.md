@@ -14,6 +14,8 @@ pip3 install berapi
 ```
 
 ## How to use
+Create an instance of berAPI class, and you can build API test request and assertion chain of the response
+
 ```python
 from berapi.apy import berAPI
 
@@ -31,7 +33,7 @@ def test_chaining():
      .assert_response_time_less_than(seconds=1)
      )
 ```
-make sure pytest.ini is having output log
+To have robust response log make sure you enable settings in pytest.ini
 ```ini
 [pytest]
 log_cli_level = INFO
@@ -41,6 +43,10 @@ log_cli_level = INFO
 
 ```bash
 pip install poetry
-pip install pytest
-pip install pytest-html
+poetry install --with test
+```
+
+### Run Test
+```bash
+poetry run pytest tests
 ```

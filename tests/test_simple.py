@@ -8,7 +8,7 @@ def test_get_user():
      .assert_2xx())
 
 def test_get_user_failed():
-    """Test get user"""
+    """Test Expected to Fail when get user"""
     (berAPI()
      .get("https://jsonplaceholder.typicode.com/users/1")
      .assert_4xx())
@@ -19,6 +19,7 @@ def test_starwars_ok():
     api.get(url).assert_2xx().assert_contains_values(['Luke Skywalker', 'male', 'blue', '172'])
 
 def test_starwars_failed():
+    """Test Expected to Fail when get Luke Skywalker"""
     url = 'https://swapi.dev/api/people/1'
     api = berAPI()
     api.get(url).assert_2xx().assert_contains_values(['Luke Skywalker', 'female', 'red', '172'])

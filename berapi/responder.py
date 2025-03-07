@@ -45,7 +45,7 @@ class Responder:
         assert_that(self.response.text).contains(text)
         return self
 
-    def assert_contains_values(self, values: list):
+    def assert_list_contains_values(self, values: list):
         """Test response body should contains some values"""
         with soft_assertions():
             for value in values:
@@ -86,3 +86,9 @@ class Responder:
             import json
             schema = json.load(f)
             jsonschema.validate(self.parse_json(), schema)
+
+    def assert_value_not_empty(self, key: str):
+        """Test value from root property should not empty"""
+        assert_that(self.get_property(key)).is_not_empty()
+        assert_that(self.get_property(key)).is_not_none()
+        return self
