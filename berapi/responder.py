@@ -1,6 +1,9 @@
+import json
+
 import jsonschema
 import requests
 from assertpy import assert_that, soft_assertions, assert_warn
+from genson import SchemaBuilder
 
 
 class Responder:
@@ -86,9 +89,29 @@ class Responder:
             import json
             schema = json.load(f)
             jsonschema.validate(self.parse_json(), schema)
+        return self
 
     def assert_value_not_empty(self, key: str):
         """Test value from root property should not empty"""
         assert_that(self.get_property(key)).is_not_empty()
         assert_that(self.get_property(key)).is_not_none()
+        return self
+
+    def _open_json(self, path_to_json, as_string=False):
+        import os
+        assert os.path.exists(path_to_json), f"JSON not found, Path: {path_to_json}"
+        with open(path_to_json, 'r') as content:
+            content = json.load(content)
+            if as_string:
+                return json.dumps(content)
+            else:
+                return content
+
+    def assert_schema_from_sample(self, path_to_sample_json):
+        """Test response body should match schema provided by sample json response body"""
+        sample_json = self._open_json(path_to_sample_json)
+        builder = SchemaBuilder()
+        builder.add_object(sample_json)
+        schema = builder.to_schema()
+        jsonschema.validate(self.parse_json(), schema)
         return self

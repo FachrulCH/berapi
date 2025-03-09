@@ -179,6 +179,17 @@ files = [
 requests = "*"
 
 [[package]]
+name = "genson"
+version = "1.3.0"
+description = "GenSON is a powerful, user-friendly JSON Schema generator."
+optional = false
+python-versions = "*"
+files = [
+    {file = "genson-1.3.0-py3-none-any.whl", hash = "sha256:468feccd00274cc7e4c09e84b08704270ba8d95232aa280f65b986139cec67f7"},
+    {file = "genson-1.3.0.tar.gz", hash = "sha256:e02db9ac2e3fd29e65b5286f7135762e2cd8a986537c075b06fc5f1517308e37"},
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -563,4 +574,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "7b36287e7847b7c5403b648472de33327af2c30496c7101a4758f1a275bee1d9"
+content-hash = "9089e248f2696dbd2e698b61365a29c372c719d64a7b5883922fac0479aea6dd"

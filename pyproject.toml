@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "berapi"
-version = "0.1.1"
+version = "0.1.3"
 description = "An API client for simplifying API testing with Python + PyTest"
 authors = ["fachrulch <fachrul.fch@gmail.com>"]
 license = "MIT"
@@ -12,6 +12,7 @@ requests = "^2.32.3"
 curlify = "^2.2.1"
 assertpy = "^1.1"
 jsonschema = "^4.23.0"
+genson = "^1.3.0"
 
 
 [tool.poetry.group.test.dependencies]

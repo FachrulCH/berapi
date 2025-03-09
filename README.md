@@ -1,6 +1,8 @@
 # 🔥 berAPI 🔥
 An API client for simplifying API testing with Python + PyTest
 
+[Project Link](https://pypi.org/project/berapi/)
+
 ## Features
 - Builtin curl API in the `pytest-html` report
 - Easy to import the API logs into Postman/curl
@@ -49,4 +51,10 @@ poetry install --with test
 ### Run Test
 ```bash
 poetry run pytest tests
+```
+
+### Building Lib
+```bash
+poetry build
+poetry publish
 ```
