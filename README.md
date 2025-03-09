@@ -35,6 +35,15 @@ def test_chaining():
      .assert_response_time_less_than(seconds=1)
      )
 ```
+### Configuration 
+env variable used in berapi
+
+```bash
+export MAX_RESPONSE_TIME=5
+export MAX_TIMEOUT=3
+```
+
+
 To have robust response log make sure you enable settings in pytest.ini
 ```ini
 [pytest]

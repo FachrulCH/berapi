@@ -51,10 +51,13 @@ class berAPI(requests.Session):
         return Responder(self.request("GET", url, *args, **kwargs))
 
     def post(self, url, *args, **kwargs):
-        return self.request("POST", url, *args, **kwargs)
+        return Responder(self.request("POST", url, *args, **kwargs))
 
     def put(self, url, *args, **kwargs):
-        return self.request("PUT", url, *args, **kwargs)
+        return Responder(self.request("PUT", url, *args, **kwargs))
+
+    def patch(self, url, *args, **kwargs):
+        return Responder(self.request("PATCH", url, *args, **kwargs))
 
     def delete(self, url, *args, **kwargs):
-        return self.request("DELETE", url, *args, **kwargs)
+        return Responder(self.request("DELETE", url, *args, **kwargs))
