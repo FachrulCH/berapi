@@ -66,8 +66,23 @@ class Responder:
         return self
 
     def get_data(self, key: str):
-        """Get data from response body [data][key]"""
-        return self.parse_json().get('data').get(key)
+        """
+        Get data from response body [data][key] support also for nested key
+        """
+        # check if nested key
+        data = self.parse_json()
+        # TODO: Test the implementation
+        if '.' in key:
+            for part in key.split('.'):
+                if isinstance(data, dict) and part in data:
+                    data = data.get(part, None)
+                    if data is None:
+                        break
+                else:
+                    raise ValueError(f"Key path '{key}' not found in response")
+            return data
+        else:
+            return self.parse_json().get('data').get(key)
 
     def get_property(self, key: str):
         """Get data from response body [key]"""
@@ -86,7 +101,6 @@ class Responder:
     def assert_schema(self, file_path_json_schema):
         """Test response body should match schema"""
         with open(file_path_json_schema) as f:
-            import json
             schema = json.load(f)
             jsonschema.validate(self.parse_json(), schema)
         return self

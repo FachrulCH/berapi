@@ -22,7 +22,6 @@ class berAPI(requests.Session):
             self.headers.update(base_headers)
 
     def url_handling(self, url):
-        print("URL Handling ", url, self.base_url)
         if url.startswith("http"):
             return url
         else:
@@ -32,15 +31,14 @@ class berAPI(requests.Session):
     def _logging(response: requests.Response, *args, **kwargs):
         """Logging Request and response to log"""
 
-        logging.info("----------- Request ----------->")
+        logging.warning("----------- Request ----------->")
         logging.info(format_console(response.request.method, response.request.url))
         logging.info(format_console("HEADERS", response.request.headers))
         logging.info(format_console("DEBUG", curlify.to_curl(response.request)))
-        # print(format_console("DEBUG", curlify.to_curl(response.request)))
         if response.request.body is not None:
             logging.info(format_console("BODY", response.request.body))
 
-        logging.info("<----------- Response -----------")
+        logging.warning("<----------- Response -----------")
         logging.info(
             format_console(
                 "STATUS",
@@ -65,7 +63,6 @@ class berAPI(requests.Session):
 
     def post(self, url, *args, **kwargs):
         url = self.url_handling(url)
-        print("URL aslinya ", url)
         return Responder(self.request("POST", url, *args, **kwargs))
 
     def put(self, url, *args, **kwargs):
