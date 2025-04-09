@@ -29,13 +29,17 @@ class TestCRUD:
                     .post('/public/v1/users', json=self.a_user)
                     .assert_2xx()
                     .assert_response_time_less_than(seconds=3)
-                    .parse_json()
                     )
-        self.a_user['id'] = response['data']['id']
-        assert_that(response['data']['id']).is_greater_than(1)
-        assert_that(response['data']['name']).is_equal_to(self.a_user['name'])
-        assert_that(response['data']['email']).is_equal_to(self.a_user['email'])
-        assert_that(response['data']['gender']).is_equal_to('male')
+        response_body = response.parse_json()
+
+        self.a_user['id'] = response.get_value('data.id')
+        # or by regular data access
+        # self.a_user['id'] = response_body['data']['id']
+
+        assert_that(response_body['data']['id']).is_greater_than(1)
+        assert_that(response_body['data']['name']).is_equal_to(self.a_user['name'])
+        assert_that(response_body['data']['email']).is_equal_to(self.a_user['email'])
+        assert_that(response_body['data']['gender']).is_equal_to('male')
 
     def test_update_user(self, api_client):
         print("==> Test 2", self.a_user)
