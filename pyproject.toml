@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "berapi"
-version = "0.1.7"
+version = "0.1.8"
 description = "An API client for simplifying API testing with Python + PyTest"
 authors = ["fachrulch <fachrul.fch@gmail.com>"]
 license = "MIT"

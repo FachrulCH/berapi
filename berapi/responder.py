@@ -88,8 +88,8 @@ class Responder:
 
     def get_data(self, key: str):
         """Get data from response property 'data' -> [data][key]"""
-        # return self.parse_json().get('data').get(key)
-        return self.get_value(f"data.{key}")
+        return self.parse_json().get('data').get(key)
+        # return self.get_value(f"data.{key}")
 
     def get_property(self, key: str):
         """Get data from response body [key]"""
