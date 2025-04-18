@@ -86,9 +86,12 @@ class Responder:
         else:
             return self.get_data(key)
 
-    def get_data(self, key: str):
+    def get_data(self, key=None):
         """Get data from response property 'data' -> [data][key]"""
-        return self.parse_json().get('data').get(key)
+        if key:
+            return self.parse_json().get('data').get(key)
+        else:
+            return self.parse_json().get('data')
         # return self.get_value(f"data.{key}")
 
     def get_property(self, key: str):
