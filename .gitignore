@@ -8,3 +8,4 @@ builds/
 dist/
 **/*.html
 **/.DS_Store
+.claude/

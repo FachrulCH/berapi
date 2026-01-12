@@ -1,42 +1,20 @@
-# berAPI
+# BerAPI
 
-A lightweight Python API client that simplifies API testing using Python and pytest. It supports chained assertions, automatic curl logging, and quick response validation for fast and efficient API testing.
+A modern, scalable API testing library for Python with middleware support, structured logging, and fluent assertions.
 
 [![PyPI version](https://badge.fury.io/py/berapi.svg)](https://pypi.org/project/berapi/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [API Reference](#api-reference)
-  - [berAPI Class](#berapi-class)
-  - [Responder Class](#responder-class)
-- [Assertion Methods](#assertion-methods)
-  - [Header Assertions](#header-assertions)
-  - [Status Code Assertions](#status-code-assertions)
-  - [Response Body Assertions](#response-body-assertions)
-  - [JSON Assertions](#json-assertions)
-  - [Schema Validation](#schema-validation)
-  - [Performance Assertions](#performance-assertions)
-- [Data Access Methods](#data-access-methods)
-- [Configuration](#configuration)
-- [pytest Integration](#pytest-integration)
-- [Examples](#examples)
-- [Development](#development)
-
 ## Features
 
-- **Fluent API** — Chainable syntax like `.get().assert_2xx().parse_json()`
-- **Auto Logging** — Automatically generates curl commands for debugging or Postman import
-- **Built-in Assertions** — Status code, response body, JSON key/value, and schema validation
-- **Response Time Checking** — Ensure your APIs are fast and stable
-- **Base URL & Headers** — Configure once, use everywhere
-- **pytest-html Integration** — Rich HTML reports with request/response logs
-
-![Report](berapi-report.gif)
+- **Fluent Assertions** - Chainable syntax like `.get().assert_2xx().assert_json_path("name", "John")`
+- **Middleware System** - Extensible request/response middleware for logging, auth, and custom logic
+- **Structured Logging** - JSON-formatted logs with structlog for easy parsing and debugging
+- **Retry with Backoff** - Automatic retries with exponential backoff and jitter
+- **OpenAPI Validation** - Validate responses against OpenAPI/Swagger specifications
+- **JSON Schema Validation** - Validate responses against JSON Schema
+- **Type Hints** - Full type annotations for IDE support and type checking
 
 ## Installation
 
@@ -47,452 +25,996 @@ pip install berapi
 ## Quick Start
 
 ```python
-from berapi.apy import berAPI
+from berapi import BerAPI, Settings
+from berapi.middleware import LoggingMiddleware
 
-# Simple GET request with assertions
-def test_simple():
-    api = berAPI()
-    response = api.get('https://jsonplaceholder.typicode.com/posts/1')
-    response.assert_2xx().assert_contains('userId')
-
-# Fluent chaining style
-def test_chaining():
-    (berAPI()
-     .get('https://jsonplaceholder.typicode.com/posts/1')
-     .assert_2xx()
-     .assert_value('userId', 1)
-     .assert_response_time_less_than(seconds=2))
-
-# Parse and use response data
-def test_parse_response():
-    api = berAPI()
-    data = api.get('https://jsonplaceholder.typicode.com/posts/1').assert_2xx().parse_json()
-    assert data['id'] == 1
-```
-
-## API Reference
-
-### berAPI Class
-
-The main client class that extends `requests.Session`. It handles HTTP requests and automatic logging.
-
-#### Constructor
-
-```python
-berAPI(base_url=None, base_headers=None)
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `base_url` | `str` | Optional. Base URL for all requests. Relative URLs will be joined with this. |
-| `base_headers` | `dict` | Optional. Headers to include in all requests. |
-
-#### Example with Base URL and Headers
-
-```python
-from berapi.apy import berAPI
-
-# Configure base URL and authentication header
-api = berAPI(
-    base_url='https://api.example.com/v1',
-    base_headers={
-        'Authorization': 'Bearer your-token',
-        'Content-Type': 'application/json'
-    }
+# Create client with configuration
+api = BerAPI(
+    Settings(base_url="https://jsonplaceholder.typicode.com"),
+    middlewares=[LoggingMiddleware()]
 )
 
-# Now use relative URLs
-api.get('/users')           # GET https://api.example.com/v1/users
-api.post('/users', json={}) # POST https://api.example.com/v1/users
+# Make request with fluent assertions
+response = (
+    api.get("/posts/1")
+    .assert_2xx()
+    .assert_json_path("userId", 1)
+    .assert_response_time(2.0)
+)
+
+# Access response data
+post = response.to_dict()
+title = response.get("title")
 ```
 
-#### HTTP Methods
+## Table of Contents
 
-All methods return a `Responder` object for chaining.
-
-| Method | Description |
-|--------|-------------|
-| `get(url, **kwargs)` | Send a GET request |
-| `post(url, **kwargs)` | Send a POST request |
-| `put(url, **kwargs)` | Send a PUT request |
-| `patch(url, **kwargs)` | Send a PATCH request |
-| `delete(url, **kwargs)` | Send a DELETE request |
-
-All standard `requests` parameters are supported (`json`, `data`, `params`, `headers`, etc.).
-
-```python
-# GET with query parameters
-api.get('/search', params={'q': 'test'})
-
-# POST with JSON body
-api.post('/users', json={'name': 'John', 'email': 'john@example.com'})
-
-# PUT with custom headers
-api.put('/users/1', json={'name': 'Jane'}, headers={'X-Custom': 'value'})
-
-# DELETE
-api.delete('/users/1')
-```
-
-### Responder Class
-
-Wraps the response and provides assertion and data access methods. All assertion methods return `self` for chaining.
-
-## Assertion Methods
-
-### Header Assertions
-
-| Method | Description |
-|--------|-------------|
-| `assert_header(key, value)` | Assert response header has specific value |
-| `assert_header_exists(key)` | Assert response header exists |
-| `assert_content_type(content_type)` | Assert Content-Type header contains value |
-
-```python
-# Check specific header value
-api.get('/users').assert_header('X-Request-Id', 'abc123')
-
-# Check header exists
-api.get('/users').assert_header_exists('X-Rate-Limit')
-
-# Check content type
-api.get('/users').assert_content_type('application/json')
-api.get('/file.xml').assert_content_type('application/xml')
-```
-
-### Status Code Assertions
-
-| Method | Description |
-|--------|-------------|
-| `assert_status_code(code)` | Assert exact status code |
-| `assert_2xx()` | Assert status code is 200-299 (success) |
-| `assert_3xx()` | Assert status code is 300-399 (redirect) |
-| `assert_4xx()` | Assert status code is 400-499 (client error) |
-| `assert_5xx()` | Assert status code is 500-599 (server error) |
-
-```python
-# Exact status code
-api.get('/users').assert_status_code(200)
-
-# Status code ranges
-api.get('/users').assert_2xx()
-api.get('/not-found').assert_4xx()
-api.post('/users', json={}).assert_status_code(201)
-```
-
-### Response Body Assertions
-
-| Method | Description |
-|--------|-------------|
-| `assert_contains(text)` | Assert response body contains text |
-| `assert_not_contains(text)` | Assert response body does not contain text |
-| `assert_list_contains_values(values)` | Assert response contains all values in list (soft assertions) |
-| `assert_has_length(length)` | Assert response body has exact length |
-| `check_contains(text)` | Non-blocking check (logs warning instead of failing) |
-
-```python
-# Check if response contains specific text
-api.get('/users/1').assert_contains('John')
-
-# Check multiple values (continues even if some fail)
-api.get('/users/1').assert_list_contains_values(['name', 'email', 'id'])
-
-# Ensure sensitive data is not exposed
-api.get('/users/1').assert_not_contains('password')
-
-# Non-blocking check (warning only)
-api.get('/users/1').check_contains('optional_field')
-```
-
-### JSON Assertions
-
-| Method | Description |
-|--------|-------------|
-| `assert_value(key, value)` | Assert JSON property equals value (supports nested keys) |
-| `assert_value_not_empty(key)` | Assert JSON property is not empty or None |
-| `assert_has_key(key)` | Assert JSON has key (supports nested keys with dot notation) |
-| `assert_list_not_empty()` | Assert response is a non-empty JSON array |
-| `assert_value_in(key, allowed_values)` | Assert value is one of the allowed values |
-
-```python
-# Assert root-level property
-api.get('/users/1').assert_value('name', 'John')
-
-# Assert nested property using dot notation
-api.get('/users/1').assert_value('address.city', 'New York')
-api.get('/users/1').assert_value('company.name', 'Acme Inc')
-
-# Assert property has a value
-api.get('/users/1').assert_value_not_empty('email')
-
-# Assert key exists (without checking value)
-api.get('/users/1').assert_has_key('id')
-api.get('/users/1').assert_has_key('address.street')  # nested key
-
-# Assert list endpoint returns non-empty array
-api.get('/users').assert_list_not_empty()
-
-# Assert value is one of allowed values (great for enums/status)
-api.get('/users/1').assert_value_in('status', ['active', 'inactive', 'pending'])
-api.get('/orders/1').assert_value_in('payment.method', ['credit_card', 'paypal', 'bank_transfer'])
-```
-
-### Schema Validation
-
-| Method | Description |
-|--------|-------------|
-| `assert_schema(file_path)` | Validate response against JSON Schema file |
-| `assert_schema_from_sample(file_path)` | Validate response against schema generated from sample JSON |
-
-```python
-# Validate against JSON Schema file
-api.get('/users/1').assert_schema('schemas/user_schema.json')
-
-# Auto-generate schema from sample response
-# Great for quick validation without writing schemas manually
-api.get('/users/1').assert_schema_from_sample('samples/user_response.json')
-```
-
-**Example JSON Schema file** (`schemas/user_schema.json`):
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": ["id", "name", "email"],
-  "properties": {
-    "id": {"type": "integer"},
-    "name": {"type": "string"},
-    "email": {"type": "string", "format": "email"}
-  }
-}
-```
-
-### Performance Assertions
-
-| Method | Description |
-|--------|-------------|
-| `assert_response_time_less_than(seconds)` | Assert response time is under threshold |
-
-```python
-# Ensure API responds within 2 seconds
-api.get('/users').assert_response_time_less_than(seconds=2)
-```
-
-## Data Access Methods
-
-Methods for extracting data from JSON responses.
-
-| Method | Description |
-|--------|-------------|
-| `parse_json()` | Parse response body as JSON and return it |
-| `get_value(key)` | Get value using dot notation (e.g., `'data.user.id'`) |
-| `get_data(key=None)` | Get value from `data` property (e.g., `response['data'][key]`) |
-| `get_property(key)` | Get root-level property value |
-
-```python
-# Parse entire response
-data = api.get('/users/1').assert_2xx().parse_json()
-print(data['name'])
-
-# Get nested value with dot notation
-user_id = api.get('/users/1').assert_2xx().get_value('data.user.id')
-
-# Get from 'data' wrapper (common API pattern)
-# For response: {"data": {"id": 1, "name": "John"}}
-user_data = api.get('/users/1').assert_2xx().get_data()        # Returns {"id": 1, "name": "John"}
-user_name = api.get('/users/1').assert_2xx().get_data('name')  # Returns "John"
-
-# Get root property
-status = api.get('/health').assert_2xx().get_property('status')
-```
+- [Configuration](#configuration)
+- [Making Requests](#making-requests)
+- [Assertions](#assertions)
+- [Data Access](#data-access)
+- [Middleware](#middleware)
+  - [Why Use Middleware?](#why-use-middleware)
+  - [Built-in Middleware](#built-in-middleware)
+  - [Custom Middleware Examples](#custom-middleware-examples)
+- [Retry and Backoff](#retry-and-backoff)
+  - [Why Use Retry?](#why-use-retry)
+  - [How Exponential Backoff Works](#how-exponential-backoff-works)
+  - [Use Cases](#use-cases)
+- [OpenAPI Validation](#openapi-validation)
+  - [Why Use OpenAPI Validation?](#why-use-openapi-validation)
+  - [Setup](#setup)
+  - [Use Cases](#use-cases-1)
+- [Error Handling](#error-handling)
+- [Migration from v1](#migration-from-v1)
 
 ## Configuration
 
-### Environment Variables
+### Using Settings
+
+```python
+from berapi import BerAPI, Settings, LoggingSettings, RetrySettings
+
+api = BerAPI(Settings(
+    base_url="https://api.example.com",
+    timeout=30.0,
+    max_response_time=10.0,  # Fail if response takes longer
+    verify_ssl=True,
+    headers={"X-Custom-Header": "value"},
+    logging=LoggingSettings(
+        level="INFO",
+        format="json",  # or "console"
+        log_curl=True,
+    ),
+    retry=RetrySettings(
+        enabled=True,
+        max_retries=3,
+        backoff_factor=0.5,
+        jitter=True,
+    ),
+))
+```
+
+### Using Environment Variables
+
+```python
+from berapi import BerAPI, Settings
+
+# Load all settings from environment
+api = BerAPI(Settings.from_env())
+```
+
+Environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MAX_TIMEOUT` | `3` | Request timeout in seconds |
-| `MAX_RESPONSE_TIME` | `5` | Maximum allowed response time (raises `Timeout` if exceeded) |
+| `BERAPI_BASE_URL` | None | Base URL for requests |
+| `BERAPI_TIMEOUT` | 30.0 | Request timeout (seconds) |
+| `BERAPI_MAX_RESPONSE_TIME` | None | Max response time threshold |
+| `BERAPI_VERIFY_SSL` | true | Verify SSL certificates |
+| `BERAPI_LOG_LEVEL` | INFO | Log level (DEBUG, INFO, WARNING, ERROR) |
+| `BERAPI_LOG_FORMAT` | json | Log format (json, console) |
+| `BERAPI_LOG_CURL` | true | Log curl commands |
+| `BERAPI_RETRY_ENABLED` | true | Enable retry |
+| `BERAPI_MAX_RETRIES` | 3 | Max retry attempts |
+| `BERAPI_BACKOFF_FACTOR` | 0.5 | Backoff multiplier |
+| `BERAPI_OPENAPI_SPEC` | None | Path to OpenAPI spec |
 
-```bash
-# Set in your shell or .env file
-export MAX_RESPONSE_TIME=10
-export MAX_TIMEOUT=5
-```
+## Making Requests
 
-## pytest Integration
-
-### pytest.ini Configuration
-
-For detailed request/response logs in your test output:
-
-```ini
-[pytest]
-log_cli = true
-log_cli_level = INFO
-log_cli_format = %(message)s
-
-# Optional: Generate HTML report
-addopts = --html=report.html --self-contained-html
-```
-
-### HTML Reports
-
-Install pytest-html for rich HTML reports:
-
-```bash
-pip install pytest-html
-```
-
-Run tests with HTML report:
-
-```bash
-pytest tests/ --html=report.html --self-contained-html
-```
-
-The report includes:
-- Full request details (method, URL, headers, body)
-- Curl command for easy reproduction
-- Response status, headers, and body
-- Response time
-
-## Examples
-
-### CRUD Operations
+### HTTP Methods
 
 ```python
-from berapi.apy import berAPI
+from berapi import BerAPI, Settings
 
-class TestUserAPI:
-    def setup_method(self):
-        self.api = berAPI(
-            base_url='https://jsonplaceholder.typicode.com',
-            base_headers={'Content-Type': 'application/json'}
-        )
+api = BerAPI(Settings(base_url="https://api.example.com"))
 
-    def test_create_user(self):
-        response = self.api.post('/users', json={
-            'name': 'John Doe',
-            'email': 'john@example.com'
-        })
-        response.assert_status_code(201)
-        user_id = response.get_property('id')
-        assert user_id is not None
+# GET
+response = api.get("/users", params={"page": 1})
 
-    def test_read_user(self):
-        (self.api
-         .get('/users/1')
-         .assert_2xx()
-         .assert_value('id', 1)
-         .assert_value_not_empty('name'))
+# POST with JSON
+response = api.post("/users", json={"name": "John", "email": "john@example.com"})
 
-    def test_update_user(self):
-        (self.api
-         .put('/users/1', json={'name': 'Jane Doe'})
-         .assert_2xx()
-         .assert_value('name', 'Jane Doe'))
+# PUT
+response = api.put("/users/1", json={"name": "Jane"})
 
-    def test_delete_user(self):
-        self.api.delete('/users/1').assert_2xx()
+# PATCH
+response = api.patch("/users/1", json={"email": "jane@example.com"})
+
+# DELETE
+response = api.delete("/users/1")
+
+# Custom method
+response = api.request("OPTIONS", "/users")
 ```
 
-### Authentication Flow
+### Request Options
 
 ```python
-from berapi.apy import berAPI
+# Custom headers
+response = api.get("/users", headers={"X-Request-ID": "123"})
 
-def test_login_flow():
-    api = berAPI(base_url='https://api.example.com')
+# Query parameters
+response = api.get("/users", params={"page": 1, "limit": 10})
 
-    # Login and get token
-    login_response = api.post('/auth/login', json={
-        'username': 'user@example.com',
-        'password': 'password123'
-    })
-    login_response.assert_2xx()
-    token = login_response.get_value('data.token')
+# Custom timeout
+response = api.get("/users", timeout=60.0)
+```
 
-    # Use token for authenticated request
-    api.headers.update({'Authorization': f'Bearer {token}'})
+## Assertions
 
-    # Access protected resource
-    (api.get('/users/me')
-     .assert_2xx()
-     .assert_value_not_empty('email'))
+All assertion methods return `self` for chaining.
+
+### Status Code
+
+```python
+response.assert_status(200)           # Exact status
+response.assert_status_range(200, 299) # Range
+response.assert_2xx()                  # 200-299
+response.assert_3xx()                  # 300-399
+response.assert_4xx()                  # 400-499
+response.assert_5xx()                  # 500-599
+```
+
+### Headers
+
+```python
+response.assert_header("X-Request-ID", "123")
+response.assert_header_exists("X-Rate-Limit")
+response.assert_content_type("application/json")
+```
+
+### Response Body
+
+```python
+response.assert_contains("success")
+response.assert_not_contains("error")
+```
+
+### JSON
+
+```python
+# Assert value at path (supports dot notation)
+response.assert_json_path("name", "John")
+response.assert_json_path("user.email", "john@example.com")
+response.assert_json_path("items.0.id", 1)
+
+# Assert key exists
+response.assert_has_key("id")
+response.assert_has_key("user.profile.avatar")
+
+# Assert not empty
+response.assert_json_not_empty("name")
+
+# Assert value in list
+response.assert_json_in("status", ["active", "pending", "inactive"])
+
+# Assert list response
+response.assert_list_not_empty()
 ```
 
 ### Schema Validation
 
 ```python
-from berapi.apy import berAPI
+# JSON Schema from dict
+response.assert_json_schema({
+    "type": "object",
+    "required": ["id", "name"],
+    "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"}
+    }
+})
 
-def test_response_schema():
-    api = berAPI()
+# JSON Schema from file
+response.assert_json_schema("schemas/user.json")
 
-    # Validate against explicit schema
-    (api.get('https://jsonplaceholder.typicode.com/users/1')
-     .assert_2xx()
-     .assert_schema('tests/resources/user_schema.json'))
-
-def test_response_matches_sample():
-    api = berAPI()
-
-    # Quick validation using sample response
-    # Useful when you don't want to write a full schema
-    (api.get('https://jsonplaceholder.typicode.com/users/1')
-     .assert_2xx()
-     .assert_schema_from_sample('tests/resources/sample_user.json'))
+# Auto-generated schema from sample
+response.assert_json_schema_from_sample("samples/user_response.json")
 ```
 
-### Performance Testing
+### OpenAPI Validation
 
 ```python
-from berapi.apy import berAPI
+# With spec path
+response.assert_openapi("getUser", spec_path="openapi.yaml")
 
-def test_api_performance():
-    api = berAPI()
-
-    # Single request performance
-    (api.get('https://jsonplaceholder.typicode.com/posts')
-     .assert_2xx()
-     .assert_response_time_less_than(seconds=2))
-
-    # Multiple endpoints
-    endpoints = ['/posts', '/users', '/comments']
-    for endpoint in endpoints:
-        (api.get(f'https://jsonplaceholder.typicode.com{endpoint}')
-         .assert_2xx()
-         .assert_response_time_less_than(seconds=3))
+# With configured spec
+api = BerAPI(Settings(openapi_spec_path="openapi.yaml"))
+api.get("/users/1").assert_openapi("getUser")
 ```
 
-## Development
+### Performance
+
+```python
+response.assert_response_time(2.0)  # Max 2 seconds
+```
+
+## Data Access
+
+```python
+# Get entire response as dict
+data = response.to_dict()
+
+# Get value with dot notation
+user_id = response.get("id")
+email = response.get("user.email")
+first_item = response.get("items.0")
+
+# Get with default
+status = response.get("status", "unknown")
+
+# Get multiple values
+values = response.get_all(["id", "name", "email"])
+
+# Access properties
+status_code = response.status_code
+headers = response.headers
+text = response.text
+elapsed = response.elapsed
+```
+
+## Middleware
+
+Middleware provides a powerful way to intercept and modify requests and responses. It follows the chain of responsibility pattern, allowing you to compose multiple middleware for different concerns.
+
+### Why Use Middleware?
+
+- **Separation of Concerns** - Keep authentication, logging, and other cross-cutting concerns separate from your test logic
+- **Reusability** - Write once, use across all your API tests
+- **Composability** - Stack multiple middleware to build complex behaviors
+- **Testability** - Easy to mock and test individual middleware components
+
+### How Middleware Works
+
+```
+Request Flow:  Client -> Middleware1 -> Middleware2 -> Server
+Response Flow: Client <- Middleware1 <- Middleware2 <- Server
+```
+
+Each middleware can:
+1. **Modify requests** before they're sent (add headers, transform body, etc.)
+2. **Modify responses** after they're received (parse, validate, transform)
+3. **Handle errors** that occur during the request/response cycle
+
+### Built-in Middleware
+
+#### LoggingMiddleware
+
+Provides structured logging for all HTTP requests and responses.
+
+```python
+from berapi import BerAPI, Settings
+from berapi.middleware import LoggingMiddleware
+
+api = BerAPI(
+    Settings(base_url="https://api.example.com"),
+    middlewares=[
+        LoggingMiddleware(
+            log_curl=True,              # Log curl command for reproduction
+            log_request_body=True,      # Log request body
+            log_response_body=True,     # Log response body
+            log_headers=True,           # Log headers
+            max_body_length=10000,      # Truncate large bodies
+            redact_headers=frozenset({  # Hide sensitive headers
+                "authorization",
+                "x-api-key",
+                "cookie"
+            }),
+        )
+    ]
+)
+```
+
+**Output Example (JSON format):**
+```json
+{
+  "event": "http_request",
+  "method": "POST",
+  "url": "https://api.example.com/users",
+  "headers": {"Authorization": "[REDACTED]", "Content-Type": "application/json"},
+  "body": {"name": "John", "email": "john@example.com"},
+  "curl": "curl -X POST 'https://api.example.com/users' -H 'Content-Type: application/json' -d '{\"name\":\"John\"}'",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### BearerAuthMiddleware
+
+Automatically adds Bearer token authentication to all requests.
+
+```python
+from berapi.middleware import BearerAuthMiddleware
+
+# Static token
+api = BerAPI(
+    Settings(base_url="https://api.example.com"),
+    middlewares=[BearerAuthMiddleware(token="your-jwt-token")]
+)
+
+# Dynamic token (refreshable)
+def get_fresh_token():
+    # Fetch from token service, cache, or generate new
+    return token_service.get_access_token()
+
+api = BerAPI(
+    Settings(base_url="https://api.example.com"),
+    middlewares=[BearerAuthMiddleware(token=get_fresh_token)]
+)
+```
+
+#### ApiKeyMiddleware
+
+Adds API key authentication via custom header.
+
+```python
+from berapi.middleware import ApiKeyMiddleware
+
+# Default header (X-API-Key)
+api = BerAPI(
+    middlewares=[ApiKeyMiddleware(api_key="your-api-key")]
+)
+
+# Custom header name
+api = BerAPI(
+    middlewares=[ApiKeyMiddleware(
+        api_key="your-api-key",
+        header_name="X-Custom-Auth",
+        prefix="ApiKey "  # Optional prefix
+    )]
+)
+```
+
+### Custom Middleware Examples
+
+#### Request ID Middleware
+
+Add unique request IDs for tracing:
+
+```python
+import uuid
+from berapi.middleware import RequestContext, ResponseContext
+
+class RequestIdMiddleware:
+    def process_request(self, context: RequestContext) -> RequestContext:
+        request_id = str(uuid.uuid4())
+        return context.with_header("X-Request-ID", request_id)
+
+    def process_response(self, context: ResponseContext) -> ResponseContext:
+        return context
+
+    def on_error(self, error: Exception, context: RequestContext) -> None:
+        pass
+```
+
+#### Timing Middleware
+
+Track and alert on slow requests:
+
+```python
+import time
+from berapi.middleware import RequestContext, ResponseContext
+
+class TimingMiddleware:
+    def __init__(self, warn_threshold: float = 1.0):
+        self.warn_threshold = warn_threshold
+
+    def process_request(self, context: RequestContext) -> RequestContext:
+        # Store start time in metadata
+        return context.with_metadata("start_time", time.time())
+
+    def process_response(self, context: ResponseContext) -> ResponseContext:
+        start_time = context.request_context.metadata.get("start_time")
+        if start_time:
+            elapsed = time.time() - start_time
+            if elapsed > self.warn_threshold:
+                print(f"SLOW REQUEST: {context.request_context.url} took {elapsed:.2f}s")
+        return context
+
+    def on_error(self, error: Exception, context: RequestContext) -> None:
+        pass
+```
+
+#### Response Caching Middleware
+
+Cache responses for repeated requests:
+
+```python
+import hashlib
+import json
+from berapi.middleware import RequestContext, ResponseContext
+
+class CachingMiddleware:
+    def __init__(self):
+        self._cache = {}
+
+    def _cache_key(self, context: RequestContext) -> str:
+        key_data = f"{context.method}:{context.url}:{json.dumps(context.params or {})}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    def process_request(self, context: RequestContext) -> RequestContext:
+        # Only cache GET requests
+        if context.method == "GET":
+            cache_key = self._cache_key(context)
+            context = context.with_metadata("cache_key", cache_key)
+        return context
+
+    def process_response(self, context: ResponseContext) -> ResponseContext:
+        cache_key = context.request_context.metadata.get("cache_key")
+        if cache_key and context.status_code == 200:
+            self._cache[cache_key] = context.response.json()
+        return context
+
+    def on_error(self, error: Exception, context: RequestContext) -> None:
+        pass
+```
+
+#### Error Notification Middleware
+
+Send alerts on failures:
+
+```python
+class SlackNotificationMiddleware:
+    def __init__(self, webhook_url: str, notify_on_status: list[int] = None):
+        self.webhook_url = webhook_url
+        self.notify_on_status = notify_on_status or [500, 502, 503, 504]
+
+    def process_request(self, context: RequestContext) -> RequestContext:
+        return context
+
+    def process_response(self, context: ResponseContext) -> ResponseContext:
+        if context.status_code in self.notify_on_status:
+            self._send_notification(
+                f"API Error: {context.request_context.method} {context.request_context.url} "
+                f"returned {context.status_code}"
+            )
+        return context
+
+    def on_error(self, error: Exception, context: RequestContext) -> None:
+        self._send_notification(f"API Exception: {context.url} - {error}")
+
+    def _send_notification(self, message: str):
+        import requests
+        requests.post(self.webhook_url, json={"text": message})
+```
+
+### Middleware Order
+
+Middleware executes in order for requests and reverse order for responses:
+
+```python
+api = BerAPI(
+    middlewares=[
+        LoggingMiddleware(),      # 1st for request, 3rd for response
+        BearerAuthMiddleware(),   # 2nd for request, 2nd for response
+        TimingMiddleware(),       # 3rd for request, 1st for response
+    ]
+)
+```
+
+### Adding Middleware Dynamically
+
+```python
+api = BerAPI(Settings(base_url="https://api.example.com"))
+
+# Add middleware after creation
+api.add_middleware(LoggingMiddleware())
+api.add_middleware(BearerAuthMiddleware(token="token"))
+
+# Middleware is added to the end of the chain
+```
+
+---
+
+## Retry and Backoff
+
+BerAPI includes built-in retry functionality with exponential backoff to handle transient failures gracefully.
+
+### Why Use Retry?
+
+- **Handle Transient Failures** - Network glitches, temporary server issues
+- **Rate Limiting** - Automatically retry after rate limit responses (429)
+- **Improved Reliability** - Tests don't fail due to temporary issues
+- **Server Recovery** - Wait for overwhelmed servers to recover
+
+### How Exponential Backoff Works
+
+Exponential backoff increases the delay between retries exponentially:
+
+```
+Attempt 1: Immediate
+Attempt 2: Wait 0.5s  (backoff_factor * 2^0)
+Attempt 3: Wait 1.0s  (backoff_factor * 2^1)
+Attempt 4: Wait 2.0s  (backoff_factor * 2^2)
+...
+```
+
+With **jitter** (randomness), delays are varied to prevent thundering herd:
+```
+Attempt 2: Wait 0.25s - 0.75s (50% - 150% of calculated delay)
+```
+
+### Configuration
+
+```python
+from berapi import BerAPI, Settings, RetrySettings
+
+api = BerAPI(Settings(
+    base_url="https://api.example.com",
+    retry=RetrySettings(
+        enabled=True,           # Enable/disable retry
+        max_retries=3,          # Maximum retry attempts
+        backoff_factor=0.5,     # Base delay multiplier
+        backoff_max=60.0,       # Maximum delay cap (seconds)
+        jitter=True,            # Add randomness to delays
+        retry_statuses=frozenset({  # Status codes to retry
+            429,  # Too Many Requests
+            500,  # Internal Server Error
+            502,  # Bad Gateway
+            503,  # Service Unavailable
+            504,  # Gateway Timeout
+        }),
+    ),
+))
+```
+
+### Use Cases
+
+#### Rate Limiting (429 Too Many Requests)
+
+```python
+# API returns 429 when rate limited
+# BerAPI automatically waits and retries
+
+api = BerAPI(Settings(
+    base_url="https://api.example.com",
+    retry=RetrySettings(
+        enabled=True,
+        max_retries=5,
+        backoff_factor=1.0,  # Start with 1 second delay
+        retry_statuses=frozenset({429}),
+    ),
+))
+
+# This will retry up to 5 times if rate limited
+response = api.get("/high-traffic-endpoint").assert_2xx()
+```
+
+#### Flaky Services
+
+```python
+# Handle unreliable third-party services
+api = BerAPI(Settings(
+    base_url="https://flaky-service.example.com",
+    retry=RetrySettings(
+        enabled=True,
+        max_retries=3,
+        backoff_factor=0.5,
+        retry_statuses=frozenset({500, 502, 503, 504}),
+    ),
+))
+```
+
+#### Load Testing Resilience
+
+```python
+# During load tests, services may temporarily fail
+api = BerAPI(Settings(
+    retry=RetrySettings(
+        enabled=True,
+        max_retries=2,
+        backoff_factor=0.25,  # Quick retries
+        jitter=True,          # Prevent synchronized retries
+    ),
+))
+```
+
+### Handling Retry Exhaustion
+
+```python
+from berapi.exceptions import RetryExhaustedError
+
+api = BerAPI(Settings(
+    retry=RetrySettings(enabled=True, max_retries=3),
+))
+
+try:
+    response = api.get("/unreliable-endpoint").assert_2xx()
+except RetryExhaustedError as e:
+    print(f"Failed after {e.attempts} attempts")
+    print(f"Last error: {e.last_error}")
+    # Handle permanent failure
+```
+
+### Disabling Retry for Specific Tests
+
+```python
+# Global retry enabled
+api = BerAPI(Settings(
+    retry=RetrySettings(enabled=True, max_retries=3),
+))
+
+# Disable for specific test by creating new client
+api_no_retry = api.with_settings(retry={"enabled": False})
+response = api_no_retry.get("/endpoint-that-should-not-retry")
+```
+
+### Retry Timing Examples
+
+With `backoff_factor=0.5` and `max_retries=4`:
+
+| Attempt | Delay (no jitter) | Delay (with jitter) |
+|---------|-------------------|---------------------|
+| 1       | 0s (immediate)    | 0s                  |
+| 2       | 0.5s              | 0.25s - 0.75s       |
+| 3       | 1.0s              | 0.5s - 1.5s         |
+| 4       | 2.0s              | 1.0s - 3.0s         |
+| 5       | 4.0s              | 2.0s - 6.0s         |
+
+---
+
+## OpenAPI Validation
+
+Validate your API responses against OpenAPI (Swagger) specifications to ensure contract compliance.
+
+### Why Use OpenAPI Validation?
+
+- **Contract Testing** - Ensure API responses match documented specification
+- **Regression Detection** - Catch breaking changes early
+- **Documentation Accuracy** - Verify docs match implementation
+- **Type Safety** - Validate response data types automatically
+- **Schema Evolution** - Detect unintended schema changes
 
 ### Setup
 
+#### 1. Provide OpenAPI Spec
+
+Create or use your existing OpenAPI specification (YAML or JSON):
+
+```yaml
+# openapi.yaml
+openapi: 3.0.0
+info:
+  title: User API
+  version: 1.0.0
+paths:
+  /users/{id}:
+    get:
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+```
+
+#### 2. Configure BerAPI
+
+```python
+from berapi import BerAPI, Settings
+
+# Option 1: Configure in Settings
+api = BerAPI(Settings(
+    base_url="https://api.example.com",
+    openapi_spec_path="openapi.yaml",
+))
+
+# Option 2: Specify per assertion
+api = BerAPI(Settings(base_url="https://api.example.com"))
+response.assert_openapi("getUser", spec_path="openapi.yaml")
+```
+
+### Basic Usage
+
+```python
+from berapi import BerAPI, Settings
+
+api = BerAPI(Settings(
+    base_url="https://api.example.com",
+    openapi_spec_path="specs/openapi.yaml",
+))
+
+# Validate response matches OpenAPI spec for "getUser" operation
+response = (
+    api.get("/users/1")
+    .assert_2xx()
+    .assert_openapi("getUser")  # Validates against spec
+)
+```
+
+### Use Cases
+
+#### Contract Testing
+
+Ensure your API implementation matches the documented contract:
+
+```python
+import pytest
+from berapi import BerAPI, Settings
+
+@pytest.fixture
+def api():
+    return BerAPI(Settings(
+        base_url="https://api.example.com",
+        openapi_spec_path="openapi.yaml",
+    ))
+
+class TestUserAPIContract:
+    def test_get_user_matches_spec(self, api):
+        """Verify GET /users/{id} matches OpenAPI spec."""
+        response = (
+            api.get("/users/1")
+            .assert_2xx()
+            .assert_openapi("getUser")
+        )
+
+    def test_create_user_matches_spec(self, api):
+        """Verify POST /users matches OpenAPI spec."""
+        response = (
+            api.post("/users", json={
+                "name": "John Doe",
+                "email": "john@example.com"
+            })
+            .assert_status(201)
+            .assert_openapi("createUser")
+        )
+
+    def test_list_users_matches_spec(self, api):
+        """Verify GET /users matches OpenAPI spec."""
+        response = (
+            api.get("/users")
+            .assert_2xx()
+            .assert_openapi("listUsers")
+        )
+```
+
+#### Regression Testing
+
+Detect breaking changes when API is updated:
+
+```python
+def test_user_schema_unchanged(api):
+    """Ensure user schema hasn't changed unexpectedly."""
+    response = api.get("/users/1").assert_2xx()
+
+    # OpenAPI validation catches:
+    # - Missing required fields
+    # - Wrong data types
+    # - Invalid enum values
+    # - Format violations (email, date-time, etc.)
+    response.assert_openapi("getUser")
+```
+
+#### Multi-Environment Validation
+
+Validate different environments against the same spec:
+
+```python
+import pytest
+from berapi import BerAPI, Settings
+
+@pytest.fixture(params=["dev", "staging", "prod"])
+def api(request):
+    base_urls = {
+        "dev": "https://dev-api.example.com",
+        "staging": "https://staging-api.example.com",
+        "prod": "https://api.example.com",
+    }
+    return BerAPI(Settings(
+        base_url=base_urls[request.param],
+        openapi_spec_path="openapi.yaml",
+    ))
+
+def test_all_environments_match_spec(api):
+    """All environments should match the API contract."""
+    response = api.get("/users/1").assert_2xx().assert_openapi("getUser")
+```
+
+### Error Handling
+
+```python
+from berapi.exceptions import OpenAPIError
+
+try:
+    response = api.get("/users/1").assert_openapi("getUser")
+except OpenAPIError as e:
+    print(f"Validation failed for operation: {e.operation_id}")
+    print(f"Errors:")
+    for error in e.errors:
+        print(f"  - {error}")
+```
+
+**Example Error Output:**
+```
+OpenAPI validation failed:
+  - Response body validation failed: 'email' is a required property
+  - Content-Type 'text/plain' not in allowed types ['application/json']
+```
+
+### Combining with JSON Schema
+
+You can use both OpenAPI validation and JSON Schema for comprehensive validation:
+
+```python
+response = (
+    api.get("/users/1")
+    .assert_2xx()
+    .assert_openapi("getUser")           # Validate against OpenAPI spec
+    .assert_json_schema({                 # Additional custom validation
+        "type": "object",
+        "properties": {
+            "email": {"pattern": "^[a-z]+@example\\.com$"}  # Custom pattern
+        }
+    })
+)
+```
+
+### Best Practices
+
+1. **Keep specs in version control** - Track changes to your API contract
+2. **Use operationId** - Give each operation a unique, descriptive ID
+3. **Validate on CI/CD** - Run contract tests in your pipeline
+4. **Test error responses** - Validate 4xx/5xx responses too
+5. **Update specs first** - Change spec before implementation (contract-first)
+
+```python
+# Test error response schema
+def test_not_found_matches_spec(api):
+    response = api.get("/users/99999").assert_4xx().assert_openapi("getUser")
+
+def test_validation_error_matches_spec(api):
+    response = (
+        api.post("/users", json={"invalid": "data"})
+        .assert_status(422)
+        .assert_openapi("createUser")
+    )
+```
+
+## Error Handling
+
+```python
+from berapi import BerAPI, Settings
+from berapi.exceptions import (
+    StatusCodeError,
+    JsonPathError,
+    TimeoutError,
+    RetryExhaustedError,
+)
+
+api = BerAPI(Settings(base_url="https://api.example.com"))
+
+try:
+    response = api.get("/users/1").assert_2xx()
+except StatusCodeError as e:
+    print(f"Expected {e.expected}, got {e.actual}")
+except JsonPathError as e:
+    print(f"Path {e.path}: expected {e.expected}, got {e.actual}")
+except TimeoutError as e:
+    print(f"Request timed out after {e.timeout}s")
+except RetryExhaustedError as e:
+    print(f"Failed after {e.attempts} attempts: {e.last_error}")
+```
+
+## Complete Example
+
+```python
+import pytest
+from berapi import BerAPI, Settings
+from berapi.middleware import LoggingMiddleware, BearerAuthMiddleware
+
+@pytest.fixture
+def api():
+    return BerAPI(
+        Settings(
+            base_url="https://jsonplaceholder.typicode.com",
+            timeout=10.0,
+        ),
+        middlewares=[LoggingMiddleware()]
+    )
+
+class TestUserAPI:
+    def test_get_user(self, api):
+        response = (
+            api.get("/users/1")
+            .assert_2xx()
+            .assert_json_path("id", 1)
+            .assert_has_key("email")
+            .assert_response_time(2.0)
+        )
+        user = response.to_dict()
+        assert "name" in user
+
+    def test_create_user(self, api):
+        response = (
+            api.post("/users", json={
+                "name": "John Doe",
+                "email": "john@example.com"
+            })
+            .assert_status(201)
+            .assert_json_not_empty("id")
+        )
+        user_id = response.get("id")
+        assert user_id is not None
+
+    def test_list_users(self, api):
+        response = (
+            api.get("/users")
+            .assert_2xx()
+            .assert_list_not_empty()
+        )
+        users = response.to_dict()
+        assert len(users) > 0
+
+    def test_not_found(self, api):
+        api.get("/users/99999").assert_4xx()
+```
+
+## Migration from v1
+
+See [MIGRATION.md](MIGRATION.md) for detailed migration guide from v1 to v2.
+
+## Development
+
 ```bash
-# Clone the repository
-git clone https://github.com/fachrulch/berapi.git
-cd berapi
-
-# Install Poetry
-pip install poetry
-
 # Install dependencies
+pip install poetry
 poetry install --with test
-```
 
-### Run Tests
-
-```bash
+# Run tests
 poetry run pytest tests/
-```
 
-### Build and Publish
-
-```bash
-poetry build
-poetry publish
+# Type checking
+poetry run mypy src/
 ```
 
 ## License

@@ -1,25 +1,48 @@
 [tool.poetry]
 name = "berapi"
-version = "0.1.9"
-description = "An API client for simplifying API testing with Python + PyTest"
+version = "2.0.0"
+description = "A modern, scalable API testing library for Python with middleware support, structured logging, and fluent assertions"
 authors = ["fachrulch <fachrul.fch@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [{include = "berapi", from = "src"}]
+keywords = ["api", "testing", "pytest", "http", "rest", "api-client"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Internet :: WWW/HTTP",
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
 requests = "^2.32.3"
-curlify = "^2.2.1"
-assertpy = "^1.1"
+structlog = "^24.1.0"
 jsonschema = "^4.23.0"
 genson = "^1.3.0"
-
+openapi-core = "^0.19.0"
+pyyaml = "^6.0.1"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.5"
 pytest-html = "^4.1.1"
 faker = "^37.0.0"
+responses = "^0.25.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(message)s"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
