@@ -68,6 +68,21 @@ class Responder:
         assert_that(self.response.text).does_not_contain(text)
         return self
 
+    def assert_header(self, key: str, value: str) -> 'Responder':
+        """Assert response header has specific value"""
+        assert_that(self.response.headers.get(key)).is_equal_to(value)
+        return self
+
+    def assert_header_exists(self, key: str) -> 'Responder':
+        """Assert response header exists"""
+        assert_that(self.response.headers.get(key)).is_not_none()
+        return self
+
+    def assert_content_type(self, content_type: str) -> 'Responder':
+        """Assert response Content-Type header contains value"""
+        assert_that(self.response.headers.get('Content-Type')).contains(content_type)
+        return self
+
     def get_value(self, key: str):
         """
         Get value for nested key, example get_value('data.user.id')
@@ -122,6 +137,31 @@ class Responder:
         """Test value from root property should not empty"""
         assert_that(self.get_property(key)).is_not_empty()
         assert_that(self.get_property(key)).is_not_none()
+        return self
+
+    def assert_has_key(self, key: str) -> 'Responder':
+        """Assert JSON response has key (supports nested keys with dot notation)"""
+        if '.' in key:
+            value = self.get_value(key)
+            assert_that(value).is_not_none()
+        else:
+            assert_that(self.parse_json()).contains_key(key)
+        return self
+
+    def assert_list_not_empty(self) -> 'Responder':
+        """Assert response is a non-empty list"""
+        data = self.parse_json()
+        assert_that(data).is_instance_of(list)
+        assert_that(data).is_not_empty()
+        return self
+
+    def assert_value_in(self, key: str, allowed_values: list) -> 'Responder':
+        """Assert value is one of the allowed values"""
+        if '.' in key:
+            value = self.get_value(key)
+        else:
+            value = self.get_property(key)
+        assert_that(value).is_in(*allowed_values)
         return self
 
     def _open_json(self, path_to_json, as_string=False):

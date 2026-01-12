@@ -15,6 +15,7 @@ A lightweight Python API client that simplifies API testing using Python and pyt
   - [berAPI Class](#berapi-class)
   - [Responder Class](#responder-class)
 - [Assertion Methods](#assertion-methods)
+  - [Header Assertions](#header-assertions)
   - [Status Code Assertions](#status-code-assertions)
   - [Response Body Assertions](#response-body-assertions)
   - [JSON Assertions](#json-assertions)
@@ -139,6 +140,26 @@ Wraps the response and provides assertion and data access methods. All assertion
 
 ## Assertion Methods
 
+### Header Assertions
+
+| Method | Description |
+|--------|-------------|
+| `assert_header(key, value)` | Assert response header has specific value |
+| `assert_header_exists(key)` | Assert response header exists |
+| `assert_content_type(content_type)` | Assert Content-Type header contains value |
+
+```python
+# Check specific header value
+api.get('/users').assert_header('X-Request-Id', 'abc123')
+
+# Check header exists
+api.get('/users').assert_header_exists('X-Rate-Limit')
+
+# Check content type
+api.get('/users').assert_content_type('application/json')
+api.get('/file.xml').assert_content_type('application/xml')
+```
+
 ### Status Code Assertions
 
 | Method | Description |
@@ -189,6 +210,9 @@ api.get('/users/1').check_contains('optional_field')
 |--------|-------------|
 | `assert_value(key, value)` | Assert JSON property equals value (supports nested keys) |
 | `assert_value_not_empty(key)` | Assert JSON property is not empty or None |
+| `assert_has_key(key)` | Assert JSON has key (supports nested keys with dot notation) |
+| `assert_list_not_empty()` | Assert response is a non-empty JSON array |
+| `assert_value_in(key, allowed_values)` | Assert value is one of the allowed values |
 
 ```python
 # Assert root-level property
@@ -200,6 +224,17 @@ api.get('/users/1').assert_value('company.name', 'Acme Inc')
 
 # Assert property has a value
 api.get('/users/1').assert_value_not_empty('email')
+
+# Assert key exists (without checking value)
+api.get('/users/1').assert_has_key('id')
+api.get('/users/1').assert_has_key('address.street')  # nested key
+
+# Assert list endpoint returns non-empty array
+api.get('/users').assert_list_not_empty()
+
+# Assert value is one of allowed values (great for enums/status)
+api.get('/users/1').assert_value_in('status', ['active', 'inactive', 'pending'])
+api.get('/orders/1').assert_value_in('payment.method', ['credit_card', 'paypal', 'bank_transfer'])
 ```
 
 ### Schema Validation
