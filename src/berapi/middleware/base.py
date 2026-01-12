@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
 import requests
+
+
+def _utc_now() -> datetime:
+    """Get current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -21,7 +26,7 @@ class RequestContext:
     json_body: dict[str, Any] | list[Any] | None = None
     timeout: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utc_now)
 
     def with_header(self, key: str, value: str) -> RequestContext:
         """Return new context with added header (immutable pattern).

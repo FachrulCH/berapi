@@ -36,7 +36,7 @@ class HttpSession:
         """
         self._settings = settings
         self._session = requests.Session()
-        self._middleware_chain = middleware_chain or MiddlewareChain()
+        self._middleware_chain = middleware_chain if middleware_chain is not None else MiddlewareChain()
 
         # Configure session
         self._session.headers.update(settings.headers)
