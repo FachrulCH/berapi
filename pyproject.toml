@@ -5,15 +5,20 @@ description = "A modern, scalable API testing library for Python with middleware
 authors = ["fachrulch <fachrul.fch@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/fachrulch/berapi"
+repository = "https://github.com/fachrulch/berapi"
+documentation = "https://github.com/fachrulch/berapi#readme"
 packages = [{include = "berapi", from = "src"}]
-keywords = ["api", "testing", "pytest", "http", "rest", "api-client"]
+keywords = ["api", "testing", "pytest", "http", "rest", "api-client", "middleware", "assertions"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Testing",
     "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
 ]
 
 [tool.poetry.dependencies]
@@ -30,6 +35,7 @@ pytest = "^8.3.5"
 pytest-html = "^4.1.1"
 faker = "^37.0.0"
 responses = "^0.25.0"
+assertpy = "^1.1"
 
 [build-system]
 requires = ["poetry-core"]
