@@ -57,6 +57,7 @@ title = response.get("title")
   - [Why Use Middleware?](#why-use-middleware)
   - [Built-in Middleware](#built-in-middleware)
   - [Custom Middleware Examples](#custom-middleware-examples)
+  - [pytest-html Integration](#pytest-html-integration)
 - [Retry and Backoff](#retry-and-backoff)
   - [Why Use Retry?](#why-use-retry)
   - [How Exponential Backoff Works](#how-exponential-backoff-works)
@@ -523,6 +524,200 @@ api.add_middleware(BearerAuthMiddleware(token="token"))
 
 # Middleware is added to the end of the chain
 ```
+
+### pytest-html Integration
+
+You can create a custom middleware to capture API requests and responses for pytest-html reports. This is useful for debugging failed tests by showing exactly what was sent and received.
+
+#### 1. Create a Request Tracker
+
+```python
+# conftest.py
+import json
+from html import escape
+
+class RequestResponseTracker:
+    """Tracks API requests and responses for HTML reports."""
+
+    def __init__(self):
+        self.requests = []
+        self.max_requests = 10
+
+    def track_request(self, method, url, headers, body):
+        self.requests.append({
+            'request': {
+                'method': method,
+                'url': str(url),
+                'headers': dict(headers) if headers else {},
+                'body': self._safe_decode(body),
+            },
+            'response': None
+        })
+        if len(self.requests) > self.max_requests:
+            self.requests.pop(0)
+
+    def track_response(self, status_code, headers, body, elapsed=None):
+        if self.requests and self.requests[-1]['response'] is None:
+            self.requests[-1]['response'] = {
+                'status_code': status_code,
+                'headers': dict(headers) if headers else {},
+                'body': body,
+                'elapsed': str(elapsed) if elapsed else None,
+            }
+
+    def _safe_decode(self, body):
+        if body is None:
+            return None
+        if isinstance(body, bytes):
+            try:
+                return body.decode('utf-8')
+            except UnicodeDecodeError:
+                return '<binary data>'
+        return str(body)
+
+    def clear(self):
+        self.requests.clear()
+
+    def to_html(self) -> str:
+        """Generate HTML representation of tracked requests."""
+        if not self.requests:
+            return '<p>No API requests tracked</p>'
+
+        html_parts = []
+        for i, item in enumerate(self.requests, 1):
+            req = item['request']
+            resp = item.get('response') or {}
+
+            status = resp.get('status_code', 0)
+            if 200 <= status < 300:
+                status_color = '#28a745'  # green
+            elif 400 <= status < 500:
+                status_color = '#ffc107'  # yellow
+            else:
+                status_color = '#dc3545'  # red
+
+            resp_body = resp.get('body')
+            if resp_body and isinstance(resp_body, (dict, list)):
+                resp_body = json.dumps(resp_body, indent=2)
+
+            html_parts.append(f'''
+            <div style="margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="background: #f5f5f5; padding: 8px;">
+                    <strong>{escape(req.get('method', ''))}</strong>
+                    <code>{escape(req.get('url', ''))}</code>
+                    <span style="background: {status_color}; color: white; padding: 2px 6px; border-radius: 3px; margin-left: 8px;">{status}</span>
+                </div>
+                <pre style="padding: 8px; margin: 0; overflow-x: auto; font-size: 11px;">{escape(str(resp_body) if resp_body else 'No body')}</pre>
+            </div>
+            ''')
+        return ''.join(html_parts)
+
+
+# Global tracker instance
+_request_tracker = RequestResponseTracker()
+```
+
+#### 2. Create Tracking Middleware
+
+```python
+class TrackingMiddleware:
+    """Middleware that tracks requests/responses for debugging."""
+
+    def process_request(self, context):
+        try:
+            _request_tracker.track_request(
+                method=context.method,
+                url=context.url,
+                headers=context.headers,
+                body=context.body if hasattr(context, 'body') else None
+            )
+        except Exception:
+            pass
+        return context
+
+    def process_response(self, context):
+        try:
+            resp = context.response
+            body = None
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text[:2000] if resp.text else None
+            _request_tracker.track_response(
+                status_code=resp.status_code,
+                headers=resp.headers,
+                body=body,
+                elapsed=resp.elapsed if hasattr(resp, 'elapsed') else None
+            )
+        except Exception:
+            pass
+        return context
+
+    def on_error(self, error, context):
+        pass
+```
+
+#### 3. Add pytest Hooks
+
+```python
+import pytest
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    """Clear tracker before each test."""
+    _request_tracker.clear()
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Add request/response data to HTML report for failed tests."""
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when == "call" and report.failed:
+        extras = getattr(report, "extras", []) or getattr(report, "extra", [])
+
+        if _request_tracker.requests:
+            try:
+                from pytest_html import extras as html_extras
+                html_content = f'''
+                <div style="margin-top: 15px;">
+                    <h4>API Requests ({len(_request_tracker.requests)} calls)</h4>
+                    {_request_tracker.to_html()}
+                </div>
+                '''
+                extras.append(html_extras.html(html_content))
+            except ImportError:
+                pass
+
+        if hasattr(report, "extras"):
+            report.extras = extras
+        else:
+            report.extra = extras
+```
+
+#### 4. Create API Client Fixture
+
+```python
+from berapi import BerAPI, Settings
+
+@pytest.fixture()
+def api_client() -> BerAPI:
+    """API client with request/response tracking."""
+    client = BerAPI(Settings(base_url="https://api.example.com"))
+    client.add_middleware(TrackingMiddleware())
+    return client
+```
+
+#### 5. Run Tests with HTML Report
+
+```bash
+pytest --html=report.html
+```
+
+When tests fail, the HTML report will show all API requests made during the test with:
+- Request method and URL
+- Response status code (color-coded: green/yellow/red)
+- Full response body
 
 ---
 
