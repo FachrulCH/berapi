@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "berapi"
-version = "2.1.0"
+version = "2.2.0"
 description = "A modern, scalable API testing library for Python with middleware support, structured logging, and fluent assertions"
 authors = ["fachrulch <fachrul.fch@gmail.com>"]
 license = "MIT"

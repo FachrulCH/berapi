@@ -33,8 +33,6 @@ from berapi.middleware import (
     LoggingMiddleware,
     BearerAuthMiddleware,
     ApiKeyMiddleware,
-    TrackingMiddleware,
-    RequestTracker,
 )
 
 # Re-export exceptions
@@ -56,7 +54,7 @@ from berapi.exceptions import (
     RetryExhaustedError,
 )
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 __all__ = [
     # Main client
@@ -75,8 +73,6 @@ __all__ = [
     "LoggingMiddleware",
     "BearerAuthMiddleware",
     "ApiKeyMiddleware",
-    "TrackingMiddleware",
-    "RequestTracker",
     # Exceptions
     "BerAPIError",
     "HTTPError",
