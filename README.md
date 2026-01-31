@@ -529,6 +529,8 @@ api.add_middleware(BearerAuthMiddleware(token="token"))
 
 You can create a custom middleware to capture API requests and responses for pytest-html reports. This is useful for debugging failed tests by showing exactly what was sent and received.
 
+> **Full implementation with cURL generation**: See [docs/pytest-html-tracking.md](docs/pytest-html-tracking.md) for the enhanced version with cURL commands, CSS optimizations, and more customization options.
+
 #### 1. Create a Request Tracker
 
 ```python
@@ -718,6 +720,13 @@ When tests fail, the HTML report will show all API requests made during the test
 - Request method and URL
 - Response status code (color-coded: green/yellow/red)
 - Full response body
+
+> **Want more features?** See the [detailed pytest-html guide](docs/pytest-html-tracking.md) for:
+> - **cURL command generation** - Ready-to-use commands to reproduce requests
+> - **CSS optimizations** - Proper width/wrapping without horizontal scrolling
+> - **Request/response headers** - Full header inspection
+> - **Customization options** - Sensitive header redaction, custom colors, and more
+> - **Integration with other HTTP clients** (requests, httpx)
 
 ---
 

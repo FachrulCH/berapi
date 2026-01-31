@@ -1,48 +1,35 @@
-"""
-Example: Request/Response Tracking for pytest-html Reports
+# Request/Response Tracking for pytest-html Reports
 
-This demonstrates how to add API request/response debugging to pytest-html reports.
-When a test fails, you'll see exactly what HTTP requests were made and responses received,
-including a ready-to-use cURL command for reproducing the request.
+Add API request/response debugging to your pytest-html reports. When a test fails, see exactly what HTTP requests were made and responses received, including ready-to-use cURL commands.
 
-Features:
-- Request/response tracking for all API calls
-- Color-coded status badges (green=2xx, yellow=4xx, red=5xx)
-- cURL command generation for easy debugging
-- CSS optimized for proper width/wrapping (no horizontal scrolling)
+## Features
 
-Run locally:
-    poetry run pytest tests/test_pytest_html_example.py --html=report.html -v
+- **Request/Response Tracking** - Capture all API calls made during tests
+- **Color-coded Status Badges** - Green (2xx), Yellow (4xx), Red (5xx)
+- **cURL Command Generation** - Copy-paste commands to reproduce requests
+- **CSS Optimized Layout** - No horizontal scrolling, proper text wrapping
+- **Automatic Cleanup** - Data cleared between tests, only shown on failures
 
-Then open report.html and click on failed tests to see the API debug information.
+## Quick Start
 
-Setup:
-    The pytest hooks (pytest_runtest_setup, pytest_runtest_makereport) must be
-    accessible to pytest. They can be:
-    1. Imported in tests/conftest.py (recommended):
-       from tests.test_pytest_html_example import pytest_runtest_setup, pytest_runtest_makereport
-    2. Or copied directly into conftest.py
+### 1. Install Dependencies
 
-Note: These tests are skipped in CI as they intentionally fail to demonstrate the feature.
-"""
+```bash
+pip install pytest pytest-html berapi
+# or with poetry
+poetry add pytest pytest-html berapi
+```
+
+### 2. Create the Tracker and Middleware
+
+Add this to your `tests/conftest.py`:
+
+```python
 import json
-import os
 from html import escape
-
 import pytest
 from berapi import BerAPI, Settings
 
-
-# Skip in CI environment
-pytestmark = pytest.mark.skipif(
-    os.environ.get("CI") == "true",
-    reason="Skipped in CI - intentional failures for HTML report demo"
-)
-
-
-# =============================================================================
-# Request/Response Tracking for HTML Report
-# =============================================================================
 
 class RequestResponseTracker:
     """Tracks API requests and responses for debugging in HTML reports."""
@@ -62,7 +49,6 @@ class RequestResponseTracker:
             },
             'response': None
         })
-        # Keep only last N requests
         if len(self.requests) > self.max_requests:
             self.requests.pop(0)
 
@@ -130,7 +116,7 @@ class RequestResponseTracker:
             req = item['request']
             resp = item.get('response') or {}
 
-            # Format request body
+            # Format bodies
             req_body = req.get('body')
             if req_body:
                 try:
@@ -138,24 +124,22 @@ class RequestResponseTracker:
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-            # Format response body
             resp_body = resp.get('body')
             if resp_body and isinstance(resp_body, (dict, list)):
                 resp_body = json.dumps(resp_body, indent=2)
 
-            # Determine status color
+            # Status color
             status = resp.get('status_code', 0)
             if 200 <= status < 300:
-                status_color = '#28a745'  # green
+                status_color = '#28a745'
             elif 400 <= status < 500:
-                status_color = '#ffc107'  # yellow
+                status_color = '#ffc107'
             else:
-                status_color = '#dc3545'  # red
+                status_color = '#dc3545'
 
-            # Generate cURL command
             curl_cmd = self._generate_curl(req)
 
-            # CSS styles for proper width/wrapping (prevents horizontal scrolling)
+            # CSS styles
             pre_style = "background: #f8f9fa; padding: 8px; border-radius: 3px; overflow-x: hidden; white-space: pre-wrap; word-break: break-word; font-size: 11px;"
             url_style = "background: #e9ecef; padding: 2px 6px; border-radius: 3px; word-break: break-all; max-width: 60%; display: inline-block; vertical-align: middle;"
 
@@ -198,10 +182,9 @@ _request_tracker = RequestResponseTracker()
 
 
 class TrackingMiddleware:
-    """Middleware that tracks requests and responses for debugging."""
+    """BerAPI middleware that tracks requests and responses."""
 
     def process_request(self, context):
-        """Track outgoing request."""
         try:
             _request_tracker.track_request(
                 method=context.method,
@@ -210,11 +193,10 @@ class TrackingMiddleware:
                 body=context.body if hasattr(context, 'body') else None
             )
         except Exception:
-            pass  # Don't fail requests due to tracking errors
+            pass
         return context
 
     def process_response(self, context):
-        """Track incoming response."""
         try:
             resp = context.response
             body = None
@@ -236,9 +218,14 @@ class TrackingMiddleware:
         return context
 
     def on_error(self, error, context):
-        """Handle errors - no action needed."""
         pass
+```
 
+### 3. Add pytest Hooks
+
+Add these hooks to the same `tests/conftest.py`:
+
+```python
 @pytest.hookimpl(tryfirst=True)
 def pytest_runtest_setup(item):
     """Clear request tracker before each test."""
@@ -251,7 +238,6 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
-    # Only add extra info for failed tests during the call phase
     if report.when == "call" and report.failed:
         if _request_tracker.requests:
             html_content = f'''
@@ -264,7 +250,7 @@ def pytest_runtest_makereport(item, call):
             '''
             extra_item = _create_html_extra(html_content)
 
-            # Use 'extras' (new pytest-html 4.x API), fallback to 'extra' (deprecated)
+            # pytest-html 4.x uses 'extras', older versions use 'extra'
             if hasattr(report, "extras"):
                 if report.extras is None:
                     report.extras = []
@@ -281,62 +267,221 @@ def _create_html_extra(content):
         from pytest_html import extras
         return extras.html(content)
     except ImportError:
-        # Fallback if extras not available
         class HtmlExtra:
             def __init__(self, content):
                 self.content = content
                 self.name = "html"
         return HtmlExtra(content)
+```
 
-# =============================================================================
-# FIXTURES
-# =============================================================================
+### 4. Create API Client Fixture
 
+```python
 @pytest.fixture
 def api():
     """BerAPI client with request/response tracking enabled."""
-    client = BerAPI(Settings(base_url="https://httpbin.org"))
+    client = BerAPI(Settings(base_url="https://your-api.com"))
     client.add_middleware(TrackingMiddleware())
     return client
+```
 
+### 5. Write Tests
 
-# =============================================================================
-# EXAMPLE TESTS
-# =============================================================================
+```python
+class TestUserAPI:
+    def test_get_user(self, api):
+        response = api.get('/users/1').assert_2xx()
+        assert response.get('name') == 'John'
 
-class TestPytestHtmlDemo:
-    """Tests demonstrating pytest-html request/response tracking."""
+    def test_create_user(self, api):
+        response = api.post('/users', json={
+            'name': 'Jane',
+            'email': 'jane@example.com'
+        }).assert_2xx()
+        assert response.get('id') is not None
+```
 
-    def test_success_no_debug_shown(self, api):
-        """Passing test - no debug info in report."""
-        api.get('/get').assert_2xx()
+### 6. Run Tests with HTML Report
 
-    def test_failed_assertion_shows_debug(self, api):
-        """
-        INTENTIONAL FAILURE - demonstrates debug output in HTML report.
-        Open report.html and click this test to see request/response details.
-        """
-        response = api.get('/get').assert_2xx()
-        assert response.get('url') == 'wrong', "Check HTML report for API debug info"
+```bash
+pytest tests/ --html=report.html -v
+```
 
-    def test_server_error_red_status(self, api):
-        """
-        INTENTIONAL FAILURE - shows 500 error with red status badge.
-        """
-        api.get('/status/500').assert_2xx()
+Open `report.html` in a browser. Click on any failed test to see the API debug information.
 
-    def test_client_error_yellow_status(self, api):
-        """
-        INTENTIONAL FAILURE - shows 404 error with yellow status badge.
-        """
-        api.get('/status/404').assert_2xx()
+## What You'll See
 
-    def test_multiple_requests_tracked(self, api):
-        """
-        INTENTIONAL FAILURE - shows multiple requests in report.
-        All 3 API calls will appear in the debug output.
-        """
-        api.get('/get').assert_2xx()
-        api.post('/post', json={"name": "test"}).assert_2xx()
-        api.get('/headers').assert_2xx()
-        assert False, "Check HTML report - all 3 requests are tracked"
+For each failed test, the report shows:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Request #1: POST https://api.example.com/users        201   │
+├─────────────────────────────────────────────────────────────┤
+│ Request Headers:          │ Response Headers:               │
+│ {                         │ {                               │
+│   "Content-Type": "...",  │   "Content-Type": "...",        │
+│   "Authorization": "..."  │   "X-Request-Id": "..."         │
+│ }                         │ }                               │
+│                           │                                 │
+│ Request Body:             │ Response Body:                  │
+│ {                         │ {                               │
+│   "name": "Jane",         │   "id": 123,                    │
+│   "email": "jane@..."     │   "name": "Jane",               │
+│ }                         │   "email": "jane@..."           │
+│                           │ }                               │
+├─────────────────────────────────────────────────────────────┤
+│ cURL Command:                                               │
+│ curl -X POST 'https://api.example.com/users' \              │
+│   -H 'Content-Type: application/json' \                     │
+│   -d '{"name":"Jane","email":"jane@example.com"}'           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Customization
+
+### Change Maximum Tracked Requests
+
+```python
+_request_tracker.max_requests = 20  # Default is 10
+```
+
+### Track All Tests (Not Just Failures)
+
+Modify the hook to remove the failure check:
+
+```python
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+
+    # Remove 'report.failed' check to show for all tests
+    if report.when == "call":
+        if _request_tracker.requests:
+            # ... rest of the code
+```
+
+### Custom Status Colors
+
+Modify the `to_html()` method:
+
+```python
+# Custom colors
+if 200 <= status < 300:
+    status_color = '#00ff00'  # bright green
+elif 400 <= status < 500:
+    status_color = '#ff9900'  # orange
+else:
+    status_color = '#ff0000'  # bright red
+```
+
+### Hide Sensitive Headers
+
+Add filtering in `_generate_curl()`:
+
+```python
+SENSITIVE_HEADERS = {'authorization', 'x-api-key', 'cookie'}
+
+for key, value in headers.items():
+    if key.lower() in SENSITIVE_HEADERS:
+        escaped_value = '***REDACTED***'
+    else:
+        escaped_value = str(value).replace("'", "'\\''")
+    parts.append(f"-H '{key}: {escaped_value}'")
+```
+
+## Using with Other HTTP Clients
+
+### requests library
+
+```python
+import requests
+
+class RequestsTrackingSession(requests.Session):
+    def request(self, method, url, **kwargs):
+        _request_tracker.track_request(
+            method=method,
+            url=url,
+            headers=kwargs.get('headers', {}),
+            body=kwargs.get('json') or kwargs.get('data')
+        )
+        response = super().request(method, url, **kwargs)
+        _request_tracker.track_response(
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            body=response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:2000],
+            elapsed=response.elapsed
+        )
+        return response
+
+@pytest.fixture
+def http():
+    return RequestsTrackingSession()
+```
+
+### httpx library
+
+```python
+import httpx
+
+class TrackingTransport(httpx.BaseTransport):
+    def __init__(self):
+        self._transport = httpx.HTTPTransport()
+
+    def handle_request(self, request):
+        _request_tracker.track_request(
+            method=request.method,
+            url=str(request.url),
+            headers=dict(request.headers),
+            body=request.content.decode() if request.content else None
+        )
+        response = self._transport.handle_request(request)
+        _request_tracker.track_response(
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            body=response.json() if 'application/json' in response.headers.get('content-type', '') else response.text[:2000]
+        )
+        return response
+
+@pytest.fixture
+def http():
+    return httpx.Client(transport=TrackingTransport())
+```
+
+## Troubleshooting
+
+### Debug info not appearing
+
+1. Ensure hooks are in `conftest.py` (not just the test file)
+2. Verify `pytest-html` is installed: `pip show pytest-html`
+3. Check the test actually failed (debug info only shows on failures by default)
+
+### cURL command doesn't work
+
+1. Check for special characters in the URL or body that need escaping
+2. Verify the API endpoint is accessible from your terminal
+3. Add `-v` flag to curl for verbose output: `curl -v ...`
+
+### Report shows "No API requests tracked"
+
+1. Ensure the middleware is added to your client: `client.add_middleware(TrackingMiddleware())`
+2. Check that the fixture is being used in the test
+3. Verify the global `_request_tracker` instance is the same one used by hooks
+
+## Example Project Structure
+
+```
+my-project/
+├── tests/
+│   ├── conftest.py          # Tracker, middleware, hooks, fixtures
+│   ├── test_users.py         # User API tests
+│   └── test_orders.py        # Order API tests
+├── pytest.ini
+└── requirements.txt
+```
+
+## See Also
+
+- [pytest-html documentation](https://pytest-html.readthedocs.io/)
+- [BerAPI documentation](https://github.com/anthropics/berapi)
+- [Example implementation](../tests/test_pytest_html_example.py)

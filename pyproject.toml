@@ -2,7 +2,7 @@
 name = "berapi"
 version = "2.2.0"
 description = "A modern, scalable API testing library for Python with middleware support, structured logging, and fluent assertions"
-authors = ["fachrulch <fachrul.fch@gmail.com>"]
+authors = ["fachrulch <hello@ngetest.id>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/fachrulch/berapi"
